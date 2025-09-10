@@ -1,0 +1,75 @@
+# Development configuration for IRO
+
+version: "1.0.0"
+environment: "development"
+
+# Google Cloud Platform settings
+gcp_project: "your-dev-project"
+gcp_region: "us-central1"
+
+# Kubernetes settings
+cluster_name: "development-cluster"
+kubeconfig_path: "~/.kube/config"
+
+# Monitoring configuration (more frequent in dev)
+monitoring:
+  interval_seconds: 10  # Check every 10 seconds in dev
+  cpu_threshold: 0.7    # Lower threshold for testing
+  memory_threshold: 0.8 # Lower threshold for testing
+  restart_threshold: 2  # Lower threshold for testing
+  namespace: "default"
+  services:
+    - "frontend"
+    - "userservice"
+    - "contacts"
+    - "balancereader"
+    - "ledgerwriter"
+    - "transactionhistory"
+
+# AI Analysis configuration
+analysis:
+  model_name: "gemini-1.5-flash"
+  temperature: 0.8  # Higher temperature for more creative responses in dev
+  max_tokens: 1024  # Smaller tokens to save costs in dev
+  timeout_seconds: 60  # Shorter timeout in dev
+  cache_ttl_minutes: 5  # Shorter cache in dev for faster iteration
+
+# Remediation configuration (safety first in dev)
+remediation:
+  dry_run: true        # Always dry run in development
+  require_approval: false  # No approval needed in dev
+  max_concurrent: 2
+  timeout_seconds: 180  # Shorter timeout in dev
+  enable_rollback: true
+  max_blast_radius: 0.5  # Lower blast radius in dev
+
+# Dashboard configuration
+dashboard:
+  host: "127.0.0.1"  # Only localhost in dev
+  port: 8080
+  enable_websocket: true
+  static_files_path: "web/static"
+
+# Logging configuration
+log_level: "DEBUG"  # Verbose logging in dev
+log_format: "text"  # Human readable logs in dev
+
+# Development-specific features
+features:
+  enable_prometheus_metrics: true
+  enable_slack_notifications: false
+  enable_email_notifications: false
+  enable_mock_data: true       # Generate mock incidents for testing
+  enable_api_debug: true       # Enable debug endpoints
+  enable_profiling: true       # Enable performance profiling
+
+# Development database (if using one)
+database:
+  url: "sqlite:///./dev_iro.db"
+  echo_sql: true
+
+# Development-specific thresholds
+dev_settings:
+  force_incident_creation: false  # Create incidents even with low confidence
+  mock_incident_interval: 300     # Create mock incident every 5 minutes
+  enable_chaos_testing: false     # Enable chaos engineering features

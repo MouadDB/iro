@@ -1,0 +1,128 @@
+# Production configuration for IRO
+
+version: "1.0.0"
+environment: "production"
+
+# Google Cloud Platform settings
+gcp_project: "${GCP_PROJECT}"  # Use environment variable
+gcp_region: "us-central1"
+
+# Kubernetes settings
+cluster_name: "bank-of-anthos-prod"
+kubeconfig_path: null  # Use in-cluster config
+
+# Monitoring configuration (conservative in production)
+monitoring:
+  interval_seconds: 60  # Check every minute in production
+  cpu_threshold: 0.85   # Higher threshold to avoid false positives
+  memory_threshold: 0.9
+  restart_threshold: 5  # Higher threshold in production
+  namespace: "default"
+  services:
+    - "frontend"
+    - "userservice"
+    - "contacts"
+    - "balancereader"
+    - "ledgerwriter"
+    - "transactionhistory"
+
+# AI Analysis configuration
+analysis:
+  model_name: "gemini-1.5-flash"
+  temperature: 0.3      # Lower temperature for consistent results
+  max_tokens: 2048
+  timeout_seconds: 180  # Longer timeout for production reliability
+  cache_ttl_minutes: 30 # Longer cache for efficiency
+
+# Remediation configuration (safety critical in production)
+remediation:
+  dry_run: false           # Execute real actions in production
+  require_approval: true   # Always require approval in production
+  max_concurrent: 1        # Conservative concurrency
+  timeout_seconds: 600     # Longer timeout for production systems
+  enable_rollback: true
+  max_blast_radius: 0.3    # Very conservative blast radius
+
+# Dashboard configuration
+dashboard:
+  host: "0.0.0.0"
+  port: 8080
+  enable_websocket: true
+  static_files_path: "/app/web/static"
+
+# Logging configuration
+log_level: "INFO"    # Production logging level
+log_format: "json"   # Structured logs for production
+
+# Production features
+features:
+  enable_prometheus_metrics: true
+  enable_slack_notifications: true
+  enable_email_notifications: true
+  enable_mock_data: false
+  enable_api_debug: false
+  enable_profiling: false  # Disable profiling in production
+
+# Alerting configuration
+alerting:
+  slack:
+    webhook_url: "${SLACK_WEBHOOK_URL}"
+    channel: "#incident-response"
+    username: "IRO Bot"
+    
+  email:
+    smtp_server: "smtp.gmail.com"
+    smtp_port: 587
+    username: "${EMAIL_USERNAME}"
+    password: "${EMAIL_PASSWORD}"
+    recipients:
+      - "sre-team@company.com"
+      - "oncall@company.com"
+
+# Security settings
+security:
+  enable_rbac: true
+  audit_logging: true
+  encrypt_communications: true
+  api_rate_limiting: true
+  max_requests_per_minute: 100
+
+# High availability settings
+ha:
+  enable_leader_election: true
+  health_check_interval: 30
+  failover_timeout: 60
+
+# Resource limits
+resources:
+  max_memory_mb: 1024
+  max_cpu_cores: 1
+  max_open_files: 1000
+  max_connections: 100
+
+# Circuit breaker settings (production-tuned)
+circuit_breakers:
+  kubernetes:
+    failure_threshold: 3
+    reset_timeout: 60
+    success_threshold: 2
+    
+  gemini:
+    failure_threshold: 2
+    reset_timeout: 30
+    success_threshold: 1
+
+# Performance settings
+performance:
+  enable_caching: true
+  cache_size_mb: 256
+  background_processing: true
+  batch_size: 10
+  worker_threads: 4
+
+# Compliance and audit
+compliance:
+  enable_audit_trail: true
+  audit_retention_days: 90
+  gdpr_compliance: true
+  data_retention_days: 365

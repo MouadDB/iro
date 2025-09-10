@@ -1,0 +1,61 @@
+# Default configuration for Incident Response Orchestrator (IRO)
+
+version: "1.0.0"
+environment: "development"
+
+# Google Cloud Platform settings
+gcp_project: ""  # Set via GCP_PROJECT environment variable
+gcp_region: "us-central1"
+
+# Kubernetes settings
+cluster_name: "bank-of-anthos"
+kubeconfig_path: null  # Uses default ~/.kube/config or in-cluster config
+
+# Monitoring configuration
+monitoring:
+  interval_seconds: 30
+  cpu_threshold: 0.8
+  memory_threshold: 0.9
+  restart_threshold: 3
+  namespace: "default"
+  services:
+    - "frontend"
+    - "userservice"
+    - "contacts"
+    - "balancereader"
+    - "ledgerwriter"
+    - "transactionhistory"
+
+# AI Analysis configuration
+analysis:
+  model_name: "gemini-1.5-flash"
+  temperature: 0.7
+  max_tokens: 2048
+  timeout_seconds: 120
+  cache_ttl_minutes: 15
+
+# Remediation configuration
+remediation:
+  dry_run: false
+  require_approval: false
+  max_concurrent: 3
+  timeout_seconds: 300
+  enable_rollback: true
+  max_blast_radius: 0.8
+
+# Dashboard configuration
+dashboard:
+  host: "0.0.0.0"
+  port: 8080
+  enable_websocket: true
+  static_files_path: "web/static"
+
+# Logging configuration
+log_level: "INFO"
+log_format: "json"
+
+# Feature flags
+features:
+  enable_prometheus_metrics: false
+  enable_slack_notifications: false
+  enable_email_notifications: false

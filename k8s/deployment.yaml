@@ -1,0 +1,228 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: incident-response
+  labels:
+    app.kubernetes.io/name: incident-response-orchestrator
+    app.kubernetes.io/component: namespace
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: iro-service-account
+  namespace: incident-response
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: iro-cluster-role
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "endpoints", "namespaces", "nodes"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["pods", "pods/log"]
+  verbs: ["get", "list", "watch", "delete"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets", "statefulsets", "daemonsets"]
+  verbs: ["get", "list", "watch", "patch", "update"]
+- apiGroups: ["metrics.k8s.io"]
+  resources: ["pods", "nodes"]
+  verbs: ["get", "list"]
+- apiGroups: ["extensions", "networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: iro-cluster-role-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: iro-cluster-role
+subjects:
+- kind: ServiceAccount
+  name: iro-service-account
+  namespace: incident-response
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: iro-config
+  namespace: incident-response
+data:
+  config.yaml: |
+    version: "1.0.0"
+    environment: "production"
+    
+    gcp_project: "your-project-id"
+    gcp_region: "us-central1"
+    cluster_name: "bank-of-anthos"
+    
+    monitoring:
+      interval_seconds: 30
+      cpu_threshold: 0.8
+      memory_threshold: 0.9
+      restart_threshold: 3
+      namespace: "default"
+      services:
+        - "frontend"
+        - "userservice"
+        - "contacts"
+        - "balancereader"
+        - "ledgerwriter"
+        - "transactionhistory"
+    
+    analysis:
+      model_name: "gemini-1.5-flash"
+      temperature: 0.7
+      max_tokens: 2048
+      timeout_seconds: 120
+      cache_ttl_minutes: 15
+    
+    remediation:
+      dry_run: false
+      require_approval: true
+      max_concurrent: 3
+      timeout_seconds: 300
+      enable_rollback: true
+      max_blast_radius: 0.8
+    
+    dashboard:
+      host: "0.0.0.0"
+      port: 8080
+      enable_websocket: true
+      static_files_path: "web/static"
+    
+    log_level: "INFO"
+    log_format: "json"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: iro-orchestrator
+  namespace: incident-response
+  labels:
+    app: iro-orchestrator
+    component: orchestrator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: iro-orchestrator
+  template:
+    metadata:
+      labels:
+        app: iro-orchestrator
+        component: orchestrator
+    spec:
+      serviceAccountName: iro-service-account
+      containers:
+      - name: iro-orchestrator
+        image: your-registry/iro:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        env:
+        - name: GCP_PROJECT
+          value: "your-project-id"
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: "/var/secrets/google/key.json"
+        - name: LOG_LEVEL
+          value: "INFO"
+        - name: ENVIRONMENT
+          value: "production"
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+          readOnly: true
+        - name: google-cloud-key
+          mountPath: /var/secrets/google
+          readOnly: true
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: config
+        configMap:
+          name: iro-config
+      - name: google-cloud-key
+        secret:
+          secretName: google-cloud-key
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: iro-service
+  namespace: incident-response
+  labels:
+    app: iro-orchestrator
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: iro-orchestrator
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: iro-ingress
+  namespace: incident-response
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  tls:
+  - hosts:
+    - iro.your-domain.com
+    secretName: iro-tls
+  rules:
+  - host: iro.your-domain.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: iro-service
+            port:
+              number: 80
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: google-cloud-key
+  namespace: incident-response
+type: Opaque
+data:
+  # Base64 encoded Google Cloud service account key
+  # kubectl create secret generic google-cloud-key --from-file=key.json=path/to/your/service-account-key.json
+  key.json: ""
